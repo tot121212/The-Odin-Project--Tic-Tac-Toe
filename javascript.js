@@ -48,11 +48,22 @@ const GameBoard = (function(){
         createBoard(boardSize);
     }
 
-    const setBoard = function(idx, symbol){
-        if (!Symbols.includes(symbol)){
-            throw new Error('Invalid symbol');
+    const setBoardSlot = function(idxs, symbol){
+        const [row, column] = idxs;
+        try {
+            if (!Symbols.includes(symbol)){
+                throw new Error('Invalid symbol');
+            }
+            if (board[row][column] !== Symbols.EMPTY){
+                throw new Error('Cannot overwrite existing symbol');
+            }
+        } catch (error) {
+            console.log(error.message);
+            return false;
         }
-        board[idx] = symbol;
+        
+        board[row][column] = symbol;
+        return true;
     }
 
     const getRows = function(board){
@@ -81,7 +92,7 @@ const GameBoard = (function(){
         return [leftToRightDiagonal, rightToLeftDiagonal].slice();
     }
 
-    return { setBoard, resetBoard, getRows, getColumns, getDiagonals };
+    return { setBoardSlot, resetBoard, getRows, getColumns, getDiagonals };
 })();
 
 const Game = (function(){
@@ -123,38 +134,56 @@ const Game = (function(){
         }
         return { segment: whichSegment, victor: whichSegment[0] };
     }
+
     let endGame = function(victoryInfo){
         console.log(`${String(victoryInfo.playerWhoWon)} won!`);
     }
 
     // start game loop of asking for input from each player
-    let startGame = function(){
+    let startGameLoop = function(){
+        // init game board
+        GameBoard.resetBoard();
+        // init players
         const players = Player.getPlayers()
+        // get first player
         let currentPlayer = Player.getPlayer(0);
         while (true){
-            // ask for input
             alert(`${String(currentPlayer.getSymbol())}'s turn`);
-            let playerInput = prompt('Enter your row": ');
+            // ask for input
+            let playerInput = prompt('Enter your move": ', 'row, column');
             // parse player input
             playerInput = playerInput.split(',').map(v => parseInt(v+1));
             // check for victory
-            if (playerInput.length !== 2 && playerInput.filter()){
-                alert('Invalid input');
-                continue;
+            if (playerInput.length !== 2 && playerInput.filter(/* instance of int*/)){
+                console.log('Invalid player input');
+                continue; // force player to enter valid input
             }
+            // check input location for existing move
+            if (GameBoard.getBoard()[playerInput[0]][playerInput[1]] !== Symbols.EMPTY){
+                console.log('Board location is already taken');
+                continue; // force player to enter valid input
+            }
+            // player input is valid
+            // apply player input to board
+            
+            GameBoard.setBoardSlot(playerInput, currentPlayer.getSymbol());
+
 
             const victoryInfo = checkForVictor();
             // if there is a player who won
             if (victoryInfo.victor){
                 break;
             }
-            else{
+            else{ // switch player to next
                 currentPlayer = Player.getPlayer((currentPlayer.getPlayerIndex() + 1) % players.length);
             }
-            // switch player
         }
-        endGame(victoryInfo)
+        endGame(victoryInfo);
     }
 
     // end game loop when a player has one
 })();
+
+Document.addEventListener('DOMContentLoaded', () => {
+    Game.startGameLoop();
+});
