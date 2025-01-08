@@ -1,13 +1,25 @@
+// FOR USER DEFINITION
+// Enum for symbols...
 const Symbols = {
-    EMPTY : '!',
+    EMPTY  : ' ',
     PLAYER1: 'X',
     PLAYER2: 'O'
 }
+const getAllSymbols = () => {
+    return Object.values(Symbols).slice();
+}
+// for getting available symbols, excluding the empty one
+const getPlayerSymbols = () => {
+    return getAllSymbols.slice(1);
+}
+
 const boardSize = 3;
 Object.defineProperty(Symbols, 'EMPTY', { writable: false, configurable: false }); // ensure empty is immutable
+// FOR USER DEFINITION
 
 const Player = (function(){
-    let players = []
+    let players = [];
+    let currentPlayer = null;
 
     const newPlayer = function(whichPlayer){
         if (whichPlayer > 1 || whichPlayer < 0){
@@ -34,7 +46,15 @@ const Player = (function(){
         return players[whichPlayer];
     }
 
-    return { newPlayer, getPlayer, getPlayers };
+    const getCurrentPlayer = () => {
+        return currentPlayer;
+    }
+
+    const setCurrentPlayer = (whichPlayer) => {
+        currentPlayer = players[whichPlayer];
+    }
+
+    return { newPlayer, getPlayer, getPlayers, getCurrentPlayer, setCurrentPlayer };
 })();
 
 const GameBoard = (function(){
@@ -78,7 +98,7 @@ const GameBoard = (function(){
         if (!idxs || !symbol) return null;
         const [row, column] = idxs;
         try {
-            if (!Object.values(Symbols).includes(symbol)){
+            if (!getAllSymbols().includes(symbol)){
                 throw new Error('Invalid symbol');
             }
             if (board[row][column] !== Symbols.EMPTY){
@@ -123,52 +143,15 @@ const GameBoard = (function(){
 })();
 
 const htmlHandler = (function(){
-    let playerInput = null;
-
     const startListeningForPlayerInput = () => {
         const tableElement = document.querySelector(".ttt-board");
         tableElement.addEventListener('click', function(e){
             playerInput = e.target.getAttribute('data-id');
+            if (typeof playerInput !== 'string') return;
+            Game.onPlayerInput(playerInput);
+            Game.beforePlayerInput(); // for next player
         });
     };
-
-    const createPlayerInputPromise = () => {
-        // returns new promise that either the player took too long or the player used an input
-        return new Promise((resolve, reject) => {
-            const timerHandle = setTimeout(() => {
-                clearInterval(interval);
-                reject("You took too long. Next players turn!");
-            }, 10000);
-
-            const interval = setInterval(() => {
-                console.log("Awaiting player input");
-                if (playerInput !== null){
-                    clearTimeout(timerHandle);
-                    clearInterval(interval);
-                    const input = playerInput;
-                    playerInput = null;
-                    console.log(`Input recieved: ${String(input)}`);
-                    resolve(input);
-                }
-            }, 250);
-        });
-    };
- 
-    const getPlayerInput = () => {
-        let output = null;
-        let promise = createPlayerInputPromise().then(
-        (resolve) => {
-            output = resolve;
-        },
-        (reject) => {
-            try {
-                if (reject instanceof Error) throw new Error(reject.message);
-            } catch (e) {
-                console.log(e.message);
-                output = null;
-        }});
-        return output;
-    }
 
     const initializeTable = (boardLength) => {
         const board = document.querySelector('.ttt-board');
@@ -178,7 +161,7 @@ const htmlHandler = (function(){
             for (let j = 0; j < boardLength; j++){
                 const cell = document.createElement('td');
                 cell.setAttribute('data-id', `${i}, ${j}`);
-                cell.innerHTML='0'
+                cell.innerHTML = Symbols.EMPTY;
                 row.appendChild(cell);
             }
             board.appendChild(row);
@@ -200,30 +183,39 @@ const htmlHandler = (function(){
         return true;
     };
 
-    return { initializeTable, updateTableElementAtWith, getPlayerInput, startListeningForPlayerInput};
+    return { initializeTable, updateTableElementAtWith, startListeningForPlayerInput};
 })();
 
 const Game = (() => {
+    let gameIsRunning = false;
+    const setGameIsRunning = (b) => {
+        if (typeof b !== 'boolean') return;
+        gameIsRunning = b;
+    }
+    const getGameIsRunning = () => {
+        return gameIsRunning;
+    }
+
     // checks board for victories
     const checkForVictor = () => {
         let victor = null, whichSegment = null;
         // put all rows, columns, and diagonals into an array for iteration
         const allPossibleVictories = GameBoard.getRows().concat(GameBoard.getColumns()).concat(GameBoard.getDiagonals());
         // gets enums for each player, excluding empty
-        const playerSymbols = Object.values(Symbols).slice().splice(1);
+        const playerSymbols = getPlayerSymbols();
         // for each row, column, and diagonal of board
         for (const segment of allPossibleVictories){
             if (playerSymbols.includes(segment[0]) && segment.every(v => v === segment[0])){
                 whichSegment = segment.slice(); // copy segment
-                victor = whichSegment[0];
+                victorSymbol = whichSegment[0];
                 break;
             }
         }
-        if (!victor){
+        if (!victorSymbol){
             return false;
         }
-        console.log(`Victor: ${String(victor)}`);
-        return { victor: victor };
+        console.log(`Victors Symbol: ${String(victorSymbol)}`);
+        return { victorSymbol: victorSymbol };
     }
 
     const sanitizePlayerInput = (input) => {
@@ -231,7 +223,7 @@ const Game = (() => {
     }
 
     const parsePlayerInput = (input) => {
-        return input.split(',').map(v => parseInt(v)-1); // parsed as array
+        return input.split(',').map(v => parseInt(v)); // parsed as array
     }
     
     const validatePlayerInput = (input) => {
@@ -263,53 +255,82 @@ const Game = (() => {
         return validatedInput;
     }
 
+    const beforePlayerInput = () => {
+        console.log(`${String(Player.getCurrentPlayer().getSymbol())}'s turn`);
+    }
+
     const initializeGame = () => {
-        // intitialize two new players
-        for(let i = 0; i < 2; i++){
+        // intitialize new players
+        let amtOfPlayers = getPlayerSymbols().length;
+        for(let i = 0; i < amtOfPlayers; i++){
             Player.newPlayer(i);
         }
 
         // initialize game board
         GameBoard.resetBoard();
-        const boardLength = GameBoard.getBoardLength();
-        
-        // init players
-        const players = Player.getPlayers()
 
         // init first player
-        let currentPlayer = Player.getPlayer(0);
+        Player.setCurrentPlayer(Math.floor(Math.random() * Player.getPlayers().length - 1));
 
-        htmlHandler.initializeTable(boardLength);
+        htmlHandler.initializeTable(GameBoard.getBoardLength());
 
         console.log("Game initialized");
-
-        return { boardLength, players, currentPlayer };
+        Game.beforePlayerInput(); // for performing stuff before/between turns
     }
 
+    const onPlayerVictory = (victoryInfo) => {
+        if (!(victoryInfo instanceof Object)) return;
+        if (typeof victoryInfo.victorSymbol !== 'string') return;
+        if (victoryInfo.victorSymbol === ''){
+            console.log('No one won...');
+        } else if (getPlayerSymbols().includes(victoryInfo.victorySymbol)){
+            console.log(`${String(victoryInfo.victorSymbol)} won!`);
+        }
+    }
+
+    const onPlayerInput = (playerInput) => {
+        playerInput = processPlayerInput(playerInput);
+        if (!playerInput) { 
+            console.log("Invalid input format, please try again...");
+            return;
+        } // if player input is invalid, they need to try again
+        console.log("Player input: " + String(playerInput));
+
+        GameBoard.setBoardSlotValue(playerInput, Player.getCurrentPlayer().getSymbol()); // set board slot
+        const boardSlotValue = GameBoard.getBoardSlotValue(playerInput);
+        if (!boardSlotValue) {
+            console.log("Already taken / Invalid board slot, please try again...");
+            return;
+        }
+        htmlHandler.updateTableElementAtWith(playerInput, boardSlotValue);
+
+        const victoryInfo = checkForVictor();
+        if (victoryInfo instanceof Object){ 
+            onPlayerVictory(victoryInfo); 
+            return; 
+        }
+        else {
+            Player.setCurrentPlayer((Player.getCurrentPlayer().getPlayerIndex() + 1) % Player.getPlayers().length);
+        }
+    }
+
+    /*
     // function that is run once the game loop ends
-    const endGameLoop = (victoryInfo) => {
-        if (!victoryInfo) return;
-        victoryInfo.victor ? console.log(`${String(victoryInfo.victor)} won!`) : console.log('No one won...');
-    }
-
+    
+    
     // start game loop
     const startGameLoop = () => {
-        const initGame = initializeGame();
-        const { boardLength, players } = initGame;
-        let { currentPlayer } = initGame;
-        
-
         while (true){
-            console.log(`${String(currentPlayer.getSymbol())}'s turn`);
+            console.log(`${String(Player.getCurrentPlayer().getSymbol())}'s turn`);
             
             // ask for input
-            let unprocessedInput = htmlHandler.getPlayerInput();
+            let unprocessedInput = htmlHandler.createPlayerInputPromise();
             console.log("Unprocessed input: " + String(unprocessedInput));
             let playerInput = processPlayerInput(unprocessedInput);
             if (!playerInput) { continue; } // make sure to continue if player input is invalid, allow them to try again
             console.log("Player input: " + String(playerInput));
 
-            GameBoard.setBoardSlotValue(playerInput, currentPlayer.getSymbol()); // set board slot
+            GameBoard.setBoardSlotValue(playerInput, Player.getCurrentPlayer().getSymbol()); // set board slot
             (() => { // update html
                 const boardSlotValue = GameBoard.getBoardSlotValue(playerInput);
                 if (!boardSlotValue) { return null; }
@@ -318,16 +339,18 @@ const Game = (() => {
 
             const victoryInfo = checkForVictor();
             if (victoryInfo && victoryInfo.victor ){ return victoryInfo; }
-            else { currentPlayer = Player.getPlayer((currentPlayer.getPlayerIndex() + 1) % players.length); }
+            else {
+                Player.setCurrentPlayer((Player.getCurrentPlayer().getPlayerIndex() + 1) % Player.getPlayers().length);
+            }
         }
     }
+    */
 
-    return { startGameLoop, endGameLoop };
+    return { setGameIsRunning, getGameIsRunning, initializeGame, beforePlayerInput, onPlayerInput, onPlayerVictory };
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
+    Game.initializeGame();
     htmlHandler.startListeningForPlayerInput();
-    const victoryInfo = Game.startGameLoop();
-    Game.endGameLoop(victoryInfo || null);
 });

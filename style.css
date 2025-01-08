@@ -17,4 +17,5 @@ td{
     border: 1px, solid, black;
     text-align: center;
     font-size: xx-large;
+    table-layout: fixed;
 }
