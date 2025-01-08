@@ -153,16 +153,21 @@ const htmlHandler = (function(){
             }, 250);
         });
     };
-
-    const getPlayerInput = async () => {
-        const input = await createPlayerInputPromise();
-        try {
-            if (input instanceof Error) throw new Error(input.message);
-        } catch (error) {
-            console.log(error.message);
-            return null;
-        }
-        return input;
+ 
+    const getPlayerInput = () => {
+        let output = null;
+        let promise = createPlayerInputPromise().then(
+        (resolve) => {
+            output = resolve;
+        },
+        (reject) => {
+            try {
+                if (reject instanceof Error) throw new Error(reject.message);
+            } catch (e) {
+                console.log(e.message);
+                output = null;
+        }});
+        return output;
     }
 
     const initializeTable = (boardLength) => {
@@ -288,7 +293,7 @@ const Game = (() => {
     }
 
     // start game loop
-    const startGameLoop = async () => {
+    const startGameLoop = () => {
         const initGame = initializeGame();
         const { boardLength, players } = initGame;
         let { currentPlayer } = initGame;
@@ -298,7 +303,7 @@ const Game = (() => {
             console.log(`${String(currentPlayer.getSymbol())}'s turn`);
             
             // ask for input
-            let unprocessedInput = await htmlHandler.getPlayerInput();
+            let unprocessedInput = htmlHandler.getPlayerInput();
             console.log("Unprocessed input: " + String(unprocessedInput));
             let playerInput = processPlayerInput(unprocessedInput);
             if (!playerInput) { continue; } // make sure to continue if player input is invalid, allow them to try again
@@ -320,7 +325,7 @@ const Game = (() => {
     return { startGameLoop, endGameLoop };
 })();
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
     htmlHandler.startListeningForPlayerInput();
     const victoryInfo = Game.startGameLoop();
