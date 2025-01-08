@@ -18,17 +18,17 @@ Object.defineProperty(Symbols, 'EMPTY', { writable: false, configurable: false }
 // FOR USER DEFINITION
 
 const Player = (function(){
-    let players, currentPlayer;
+    const players = [];
+    let currentPlayer = null;
 
     const resetPlayers = () => {
-        players = [];
+        players.length = 0;
         currentPlayer = null;
     }
-    resetPlayers();
     
-    const newPlayer = function(s){
+    const newPlayer = (s) => {
         const index = players.length;
-        const symbol = s;
+        const symbol = String(s);
     
         const getPlayerIndex = function(){
             return index;
@@ -38,6 +38,7 @@ const Player = (function(){
         }
         
         players.push({ getPlayerIndex, getSymbol });
+        return players[index];
     }
 
     const getPlayers = function(){
@@ -52,15 +53,24 @@ const Player = (function(){
         return currentPlayer;
     }
 
-    const setCurrentPlayer = (idx) => {
-        currentPlayer = players[idx];
+    const setCurrentPlayer = (player) => {
+        currentPlayer = player;
     }
 
-    return { resetPlayers, newPlayer, getPlayer, getPlayers, getCurrentPlayer, setCurrentPlayer };
+    const getNextPlayer = () => {
+        return getPlayer((Player.getCurrentPlayer().getPlayerIndex() + 1) % Player.getPlayers().length);
+    }
+
+    return { resetPlayers, newPlayer, getPlayer, getPlayers, getCurrentPlayer, setCurrentPlayer, getNextPlayer };
 })();
 
 const GameBoard = (function(){
     let board = [];
+
+    const getBoardVisual = () => {
+        const boardVisual = board.map(row => row.join(' | ')).join('\n' + '-'.repeat(board.length * 4 - 3) + '\n');
+        return boardVisual;
+    }
 
     const boardExists = () => {
         if (board.length === 0){
@@ -116,7 +126,7 @@ const GameBoard = (function(){
             }
         } catch (error) {
             console.log(error.message);
-            return null;
+            return false;
         }
         
         board[row][column] = symbol;
@@ -149,7 +159,7 @@ const GameBoard = (function(){
         return [leftToRightDiagonal, rightToLeftDiagonal].slice();
     }
 
-    return { boardExists, initializeBoard, getBoardLength, setBoardSlotValue, getBoardSlotValue, getRows, getColumns, getDiagonals };
+    return { boardExists, initializeBoard, getBoardVisual, getBoardLength, setBoardSlotValue, getBoardSlotValue, getRows, getColumns, getDiagonals };
 })();
 
 const htmlHandler = (function(){
@@ -203,33 +213,60 @@ const Game = (() => {
     let isGameInProgress = false;
     const setIsGameInProgress = (b) => {
         if (typeof b !== 'boolean') return;
+        if (b === true){
+            console.log("Game has begun");
+        }
+        else if (b === false){
+            console.log("Game has ended");
+        }
         isGameInProgress = b;
     }
     const getIsGameInProgress = () => {
         return isGameInProgress;
     }
 
+    const checkForNoVictor = (rows) => {
+        // check if no victor
+        let fullRowCount = 0;
+        for (const row of rows){
+            if (row.every(v => v !== Symbols.EMPTY)){
+                fullRowCount++;
+            }
+        }
+        if (fullRowCount > rows.length){
+            return true;
+        }
+        return false;
+    }
+
     // checks board for victories
     const checkForVictor = () => {
-        let victorSymbol = null, whichSegment = null;
+        let victorSymbol = null;
+        const getVictorySymbol = () => { return victorSymbol }
         // put all rows, columns, and diagonals into an array for iteration
-        const allPossibleVictories = GameBoard.getRows().concat(GameBoard.getColumns()).concat(GameBoard.getDiagonals());
+        const rows = GameBoard.getRows();
+
+        // check if victor
+        const columns = GameBoard.getColumns();
+        const diagonals = GameBoard.getDiagonals();
+        const allPossibleVictories = rows.concat(columns).concat(diagonals);
         // gets enums for each player, excluding empty
         const playerSymbols = getPlayerSymbols();
         // for each row, column, and diagonal of board
         for (const segment of allPossibleVictories){
-            if (playerSymbols.includes(segment[0]) && segment.every(v => v === segment[0])){
-                whichSegment = segment.slice(); // copy segment
-                victorSymbol = whichSegment[0];
+            if (playerSymbols.includes(segment[0]) && segment.slice(1).every(v => v === segment[0])){
+                victorSymbol = segment[0];
                 break;
             }
         }
-        if (!victorSymbol){
-            return false;
+
+        if (checkForNoVictor(rows)){
+            victorSymbol = "No Victor";
+        } 
+        
+        if (victorSymbol){
+            return { getVictorySymbol };
         }
-        console.log(`Victors Symbol: ${String(victorSymbol)}`);
-        setIsGameInProgress(false);
-        return { victorSymbol: victorSymbol };
     }
 
     const sanitizePlayerInput = (input) => {
@@ -270,23 +307,25 @@ const Game = (() => {
     }
 
     const beforePlayerInput = () => {
-        console.log(`${String(Player.getCurrentPlayer().getSymbol())}'s turn`);
+        console.log(GameBoard.getBoardVisual());
+        console.log(`${Player.getCurrentPlayer().getSymbol()}'s turn`);
     }
 
     const initializeGame = () => {
         Player.resetPlayers();
         
         // intitialize new players
-        for(symbol in getPlayerSymbols()){
-            Player.newPlayer(symbol);
+        for(symbol of getPlayerSymbols()){
+            let newPlayer = Player.newPlayer(symbol);
+            console.log(newPlayer);
         }
 
         // initialize game board
         GameBoard.initializeBoard();
 
         // init first player
-        Player.setCurrentPlayer(Math.floor(Math.random() * Player.getPlayers().length - 1));
-        console.log(`Current player: ${Player.getCurrentPlayer()}`);
+        Player.setCurrentPlayer(Player.getPlayers()[0]);
+        console.log(`Current player: ${Player.getCurrentPlayer().getSymbol()}`);
 
         htmlHandler.initializeTable(GameBoard.getBoardLength());
 
@@ -296,12 +335,13 @@ const Game = (() => {
     }
 
     const onPlayerVictory = (victoryInfo) => {
-        if (!(victoryInfo instanceof Object)) return;
-        if (typeof victoryInfo.victorSymbol !== 'string') return;
-        if (victoryInfo.victorSymbol === ''){
+        const symbol = victoryInfo.getVictorySymbol();
+        console.log(victoryInfo);
+        setIsGameInProgress(false);
+        if (symbol === "No Victor"){
             console.log('No one won...');
-        } else if (getPlayerSymbols().includes(victoryInfo.victorySymbol)){
-            console.log(`${String(victoryInfo.victorSymbol)} won!`);
+        } else if (getPlayerSymbols().includes(symbol)){
+            console.log(`${String(symbol)} won!`);
         }
     }
 
@@ -313,21 +353,29 @@ const Game = (() => {
         } // if player input is invalid, they need to try again
         console.log("Player input: " + String(playerInput));
 
-        GameBoard.setBoardSlotValue(playerInput, Player.getCurrentPlayer().getSymbol()); // set board slot
-        const boardSlotValue = GameBoard.getBoardSlotValue(playerInput);
-        if (!boardSlotValue) {
-            console.log("Already taken / Invalid board slot, please try again...");
+        let wasBoardSlotFilled, boardSlotValue;
+        try {
+            wasBoardSlotFilled = GameBoard.setBoardSlotValue(playerInput, Player.getCurrentPlayer().getSymbol()); // set board slot
+            if (!wasBoardSlotFilled) {
+                throw new Error("Already taken / Invalid board slot, please try again...");
+            }
+            boardSlotValue = GameBoard.getBoardSlotValue(playerInput);
+            if (!boardSlotValue) {
+                throw new Error("Already taken / Invalid board slot, please try again...");
+            }
+        } catch (error) {
+            console.log(error.message);
             return;
         }
         htmlHandler.updateTableElementAtWith(playerInput, boardSlotValue);
 
         const victoryInfo = checkForVictor();
-        if (victoryInfo instanceof Object){ 
-            onPlayerVictory(victoryInfo); 
-            return; 
+        if (victoryInfo || victoryInfo.getVictorSymbol() === Symbols.EMPTY){
+            onPlayerVictory(victoryInfo);
+            return;
         }
         else {
-            Player.setCurrentPlayer((Player.getCurrentPlayer().getPlayerIndex() + 1) % Player.getPlayers().length);
+            Player.setCurrentPlayer(Player.getNextPlayer());
         }
     }
 
