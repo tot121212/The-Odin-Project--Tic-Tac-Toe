@@ -370,7 +370,7 @@ const Game = (() => {
         htmlHandler.updateTableElementAtWith(playerInput, boardSlotValue);
 
         const victoryInfo = checkForVictor();
-        if (victoryInfo || victoryInfo.getVictorSymbol() === Symbols.EMPTY){
+        if (victoryInfo){
             onPlayerVictory(victoryInfo);
             return;
         }
