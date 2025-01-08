@@ -10,7 +10,7 @@ const getAllSymbols = () => {
 }
 // for getting available symbols, excluding the empty one
 const getPlayerSymbols = () => {
-    return getAllSymbols.slice(1);
+    return getAllSymbols().slice(1);
 }
 
 const boardSize = 3;
@@ -18,18 +18,20 @@ Object.defineProperty(Symbols, 'EMPTY', { writable: false, configurable: false }
 // FOR USER DEFINITION
 
 const Player = (function(){
-    let players = [];
-    let currentPlayer = null;
+    let players, currentPlayer;
 
-    const newPlayer = function(whichPlayer){
-        if (whichPlayer > 1 || whichPlayer < 0){
-            throw new Error('Cannot have more than two players');
-        }
-        const player = whichPlayer;
-        const symbol = player === 0 ? Symbols.PLAYER1 : Symbols.PLAYER2;
+    const resetPlayers = () => {
+        players = [];
+        currentPlayer = null;
+    }
+    resetPlayers();
+    
+    const newPlayer = function(s){
+        const index = players.length;
+        const symbol = s;
     
         const getPlayerIndex = function(){
-            return player;
+            return index;
         }
         const getSymbol = function(){
             return symbol;
@@ -42,30 +44,38 @@ const Player = (function(){
         return players;
     }
 
-    const getPlayer = function(whichPlayer){
-        return players[whichPlayer];
+    const getPlayer = function(idx){
+        return players[idx];
     }
 
     const getCurrentPlayer = () => {
         return currentPlayer;
     }
 
-    const setCurrentPlayer = (whichPlayer) => {
-        currentPlayer = players[whichPlayer];
+    const setCurrentPlayer = (idx) => {
+        currentPlayer = players[idx];
     }
 
-    return { newPlayer, getPlayer, getPlayers, getCurrentPlayer, setCurrentPlayer };
+    return { resetPlayers, newPlayer, getPlayer, getPlayers, getCurrentPlayer, setCurrentPlayer };
 })();
 
 const GameBoard = (function(){
     let board = [];
+
+    const boardExists = () => {
+        if (board.length === 0){
+            return false;
+        } else {
+            return true;
+        }
+    }
 
     const createBoard = function(n){
         // create square grid
         board = Array.from({ length: n }, () => Array(n).fill(Symbols.EMPTY));
     }
 
-    const resetBoard = function(){
+    const initializeBoard = function(){
         createBoard(boardSize);
     }
 
@@ -139,7 +149,7 @@ const GameBoard = (function(){
         return [leftToRightDiagonal, rightToLeftDiagonal].slice();
     }
 
-    return { resetBoard, getBoardLength, setBoardSlotValue, getBoardSlotValue, getRows, getColumns, getDiagonals };
+    return { boardExists, initializeBoard, getBoardLength, setBoardSlotValue, getBoardSlotValue, getRows, getColumns, getDiagonals };
 })();
 
 const htmlHandler = (function(){
@@ -148,8 +158,11 @@ const htmlHandler = (function(){
         tableElement.addEventListener('click', function(e){
             playerInput = e.target.getAttribute('data-id');
             if (typeof playerInput !== 'string') return;
+            if (!Game.getIsGameInProgress()) return; // check if game is running before player move
             Game.onPlayerInput(playerInput);
-            Game.beforePlayerInput(); // for next player
+            if (Game.getIsGameInProgress()){ // check if player has won, if so we dont need to do any before operations bc game is over
+                Game.beforePlayerInput();
+            }
         });
     };
 
@@ -187,18 +200,18 @@ const htmlHandler = (function(){
 })();
 
 const Game = (() => {
-    let gameIsRunning = false;
-    const setGameIsRunning = (b) => {
+    let isGameInProgress = false;
+    const setIsGameInProgress = (b) => {
         if (typeof b !== 'boolean') return;
-        gameIsRunning = b;
+        isGameInProgress = b;
     }
-    const getGameIsRunning = () => {
-        return gameIsRunning;
+    const getIsGameInProgress = () => {
+        return isGameInProgress;
     }
 
     // checks board for victories
     const checkForVictor = () => {
-        let victor = null, whichSegment = null;
+        let victorSymbol = null, whichSegment = null;
         // put all rows, columns, and diagonals into an array for iteration
         const allPossibleVictories = GameBoard.getRows().concat(GameBoard.getColumns()).concat(GameBoard.getDiagonals());
         // gets enums for each player, excluding empty
@@ -215,6 +228,7 @@ const Game = (() => {
             return false;
         }
         console.log(`Victors Symbol: ${String(victorSymbol)}`);
+        setIsGameInProgress(false);
         return { victorSymbol: victorSymbol };
     }
 
@@ -260,21 +274,24 @@ const Game = (() => {
     }
 
     const initializeGame = () => {
+        Player.resetPlayers();
+        
         // intitialize new players
-        let amtOfPlayers = getPlayerSymbols().length;
-        for(let i = 0; i < amtOfPlayers; i++){
-            Player.newPlayer(i);
+        for(symbol in getPlayerSymbols()){
+            Player.newPlayer(symbol);
         }
 
         // initialize game board
-        GameBoard.resetBoard();
+        GameBoard.initializeBoard();
 
         // init first player
         Player.setCurrentPlayer(Math.floor(Math.random() * Player.getPlayers().length - 1));
+        console.log(`Current player: ${Player.getCurrentPlayer()}`);
 
         htmlHandler.initializeTable(GameBoard.getBoardLength());
 
         console.log("Game initialized");
+        Game.setIsGameInProgress(true);
         Game.beforePlayerInput(); // for performing stuff before/between turns
     }
 
@@ -346,7 +363,7 @@ const Game = (() => {
     }
     */
 
-    return { setGameIsRunning, getGameIsRunning, initializeGame, beforePlayerInput, onPlayerInput, onPlayerVictory };
+    return { getIsGameInProgress, setIsGameInProgress, initializeGame, beforePlayerInput, onPlayerInput, onPlayerVictory };
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
