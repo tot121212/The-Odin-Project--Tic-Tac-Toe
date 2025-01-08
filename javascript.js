@@ -191,20 +191,28 @@ const htmlHandler = (function(){
         }
     };
 
+    const getElementAt = (at) => {
+        [row, column] = at;
+        const cell = document.querySelector(`td[data-id="${row}, ${column}"]`);
+        if (!cell) throw new Error("HTML element does not exist");
+        return cell;
+    };
+
     const updateTableElementAtWith = (at, w) => {
         // query for specific element changes instead of updating the whole thing
         [row, column] = at; // destructure row and column
-        try {
-            const cell = document.querySelector(`td[data-id="${row}, ${column}"]`);
-            if (!cell) throw new Error("HTML element does not exist");
-            cell.textContent = w;
-            if (!cell.textContent) throw new Error("HTML element textContent was not updated");
-        } catch (error) {
-            console.log(error.message);
-            return null;
-        }
+        const cell = document.querySelector(`td[data-id="${row}, ${column}"]`);
+        cell.textContent = w;
+        if (!cell.textContent === w) throw new Error("HTML element textContent was not updated");
         return true;
     };
+
+    // TODO: function to add victor class to td
+    const addVictorClassTo = (at) => {
+        cell = getElementAt(at);
+        cell.classList.add('victor');
+        return true;
+    }
 
     return { initializeTable, updateTableElementAtWith, startListeningForPlayerInput};
 })();
@@ -233,7 +241,7 @@ const Game = (() => {
                 fullRowCount++;
             }
         }
-        if (fullRowCount > rows.length){
+        if (fullRowCount >= GameBoard.getBoardLength()){
             return true;
         }
         return false;
@@ -242,7 +250,7 @@ const Game = (() => {
     // checks board for victories
     const checkForVictor = () => {
         let victorSymbol = null;
-        const getVictorySymbol = () => { return victorSymbol }
+        const getVictorySymbol = () => { return victorSymbol };
         // put all rows, columns, and diagonals into an array for iteration
         const rows = GameBoard.getRows();
 
@@ -259,14 +267,15 @@ const Game = (() => {
                 break;
             }
         }
-
         if (checkForNoVictor(rows)){
             victorSymbol = "No Victor";
         } 
         
         if (victorSymbol){
+            
             return { getVictorySymbol };
         }
+        return null;
     }
 
     const sanitizePlayerInput = (input) => {
@@ -374,9 +383,7 @@ const Game = (() => {
             onPlayerVictory(victoryInfo);
             return;
         }
-        else {
-            Player.setCurrentPlayer(Player.getNextPlayer());
-        }
+        Player.setCurrentPlayer(Player.getNextPlayer());
     }
 
     /*
