@@ -4,22 +4,54 @@
 
 html, body{
     height: 100%;
-    width: 100%;
+}
+
+body{
+    padding: 8px;
+    background-color: beige;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 5fr 2fr;
+}
+
+body > * {
+    padding: 8px;
+}
+
+header{
+    grid-row: 1/2;
+}
+
+main{
+    grid-row: 2/3;
+}
+
+footer{
+    grid-row: 3/4;
+}
+
+footer{
+    height: auto;
+}
+
+main > .container{
+    aspect-ratio: 1/1;
+    display: flex;
+    flex-direction: column;
 }
 
 table{
+    flex: 1 0 0px;
     table-layout: fixed;
-    width: 70%;
-    height: 70%;
 }
-
 
 td{
     width: 33%;
     height: 33%;
     border: 1px, solid, black;
-    text-align: center;
     font-size: xx-large;
+    text-align: center;
+    vertical-align: middle;
 }
 
 .victor{

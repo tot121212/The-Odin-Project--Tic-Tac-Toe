@@ -162,7 +162,11 @@ const GameBoard = (function(){
     return { boardExists, initializeBoard, getBoardVisual, getBoardLength, setBoardSlotValue, getBoardSlotValue, getRows, getColumns, getDiagonals };
 })();
 
-const htmlHandler = (function(){
+const Leaderboard = (() => {
+
+})();
+
+const HtmlHandler = (function(){
     const startListeningForPlayerInput = () => {
         const tableElement = document.querySelector(".ttt-board");
         tableElement.addEventListener('click', function(e){
@@ -214,7 +218,14 @@ const htmlHandler = (function(){
         return true;
     }
 
-    return { initializeTable, updateTableElementAtWith, startListeningForPlayerInput};
+    const updateLeaderboard = () => {
+        // update leaderboard with each players victories, perhaps as a table
+        document.querySelector('#leaderboard').innerHTML = '';
+        // ideally in actual implementation it would be an sql database, csv file, or smthn but for now its just tied to the current instance of the html page
+        
+    }
+
+    return { initializeTable, updateTableElementAtWith, startListeningForPlayerInput, updateLeaderboard};
 })();
 
 const Game = (() => {
@@ -336,7 +347,7 @@ const Game = (() => {
         Player.setCurrentPlayer(Player.getPlayers()[0]);
         console.log(`Current player: ${Player.getCurrentPlayer().getSymbol()}`);
 
-        htmlHandler.initializeTable(GameBoard.getBoardLength());
+        HtmlHandler.initializeTable(GameBoard.getBoardLength());
 
         console.log("Game initialized");
         Game.setIsGameInProgress(true);
@@ -376,7 +387,7 @@ const Game = (() => {
             console.log(error.message);
             return;
         }
-        htmlHandler.updateTableElementAtWith(playerInput, boardSlotValue);
+        HtmlHandler.updateTableElementAtWith(playerInput, boardSlotValue);
 
         const victoryInfo = checkForVictor();
         if (victoryInfo){
@@ -396,7 +407,7 @@ const Game = (() => {
             console.log(`${String(Player.getCurrentPlayer().getSymbol())}'s turn`);
             
             // ask for input
-            let unprocessedInput = htmlHandler.createPlayerInputPromise();
+            let unprocessedInput = HtmlHandler.createPlayerInputPromise();
             console.log("Unprocessed input: " + String(unprocessedInput));
             let playerInput = processPlayerInput(unprocessedInput);
             if (!playerInput) { continue; } // make sure to continue if player input is invalid, allow them to try again
@@ -406,7 +417,7 @@ const Game = (() => {
             (() => { // update html
                 const boardSlotValue = GameBoard.getBoardSlotValue(playerInput);
                 if (!boardSlotValue) { return null; }
-                htmlHandler.updateTableElementAtWith(playerInput, boardSlotValue);
+                HtmlHandler.updateTableElementAtWith(playerInput, boardSlotValue);
             })();
 
             const victoryInfo = checkForVictor();
@@ -424,5 +435,5 @@ const Game = (() => {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
     Game.initializeGame();
-    htmlHandler.startListeningForPlayerInput();
+    HtmlHandler.startListeningForPlayerInput();
 });
