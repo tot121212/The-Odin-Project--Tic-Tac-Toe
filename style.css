@@ -24,36 +24,65 @@ header{
 
 main{
     grid-row: 2/3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+main > form{
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+}
+
+main button#start-game{
+    align-self: center;
+}
+
+main table{
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-rows: 1fr;
+    grid-auto-rows: 1fr;
+    aspect-ratio: 1/1;
+    flex: 1 0 0;
+    table-layout: fixed;
+}
+
+main tr{
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: 1fr;
+    grid-auto-columns: 1fr;
+}
+
+main td{
+    border: 1px, solid, black;
+    font-size: xx-large;
+    text-align: center;
+    vertical-align: middle;
+    align-content: center;
 }
 
 footer{
     grid-row: 3/4;
 }
 
-footer{
-    height: auto;
-}
-
-main > .container{
-    aspect-ratio: 1/1;
-    display: flex;
-    flex-direction: column;
-}
-
-table{
-    flex: 1 0 0px;
-    table-layout: fixed;
-}
-
-td{
-    width: 33%;
-    height: 33%;
-    border: 1px, solid, black;
-    font-size: xx-large;
+footer #victory-info{
     text-align: center;
     vertical-align: middle;
 }
 
-.victor{
+.victor-bg{
     background-color: green;
+}
+
+.victor-txt{
+    color: green;
+}
+
+.hidden{
+    display: none;
 }
